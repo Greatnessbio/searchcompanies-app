@@ -38,27 +38,35 @@ def serper_search(query):
     return response.json()
 
 def exa_search(query):
-    exa = Exa(api_key=EXA_API_KEY)
-    result = exa.search_and_contents(
-        query,
-        type="auto",
-        num_results=25,
-        text=True
-    )
-    return result
+    try:
+        exa = Exa(api_key=EXA_API_KEY)
+        result = exa.search_and_contents(
+            query,
+            type="auto",
+            num_results=25,
+            text=True
+        )
+        return result
+    except Exception as e:
+        st.error(f"Error in Exa search: {str(e)}")
+        return []
 
 def exa_similar_search(domain):
-    exa = Exa(api_key=EXA_API_KEY)
-    result = exa.find_similar_and_contents(
-        f"https://{domain}",
-        num_results=10,
-        text=True,
-        exclude_domains=[domain],
-        start_published_date="2024-01-23T16:01:08.902Z",
-        end_published_date="2024-07-23T15:01:08.902Z",
-        highlights=True
-    )
-    return result
+    try:
+        exa = Exa(api_key=EXA_API_KEY)
+        result = exa.find_similar_and_contents(
+            f"https://{domain}",
+            num_results=10,
+            text=True,
+            exclude_domains=[domain],
+            start_published_date="2024-01-23T16:01:08.902Z",
+            end_published_date="2024-07-23T15:01:08.902Z",
+            highlights=True
+        )
+        return result
+    except Exception as e:
+        st.error(f"Error in Exa similar search: {str(e)}")
+        return []
 
 def main():
     if "logged_in" not in st.session_state:
@@ -84,14 +92,22 @@ def main():
                 if "organic" in serper_results:
                     for result in serper_results["organic"]:
                         st.checkbox(f"{result['title']} - {result['link']}")
+                else:
+                    st.warning("No organic results found in Serper search.")
 
                 st.subheader("Exa Search Results")
-                for result in exa_results:
-                    st.checkbox(f"{result['title']} - {result['url']}")
+                if exa_results:
+                    for result in exa_results:
+                        st.checkbox(f"{result.get('title', 'No title')} - {result.get('url', 'No URL')}")
+                else:
+                    st.warning("No results found in Exa search.")
 
                 st.subheader("Exa Similar Results")
-                for result in exa_similar_results:
-                    st.checkbox(f"{result['title']} - {result['url']}")
+                if exa_similar_results:
+                    for result in exa_similar_results:
+                        st.checkbox(f"{result.get('title', 'No title')} - {result.get('url', 'No URL')}")
+                else:
+                    st.warning("No similar results found in Exa search.")
 
 if __name__ == "__main__":
     main()
