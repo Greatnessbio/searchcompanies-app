@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import json
+from exa_py import Exa
 
 # Set page config
 st.set_page_config(page_title="Company Search App", page_icon="🔍", layout="wide")
@@ -50,7 +51,7 @@ def exa_search(query):
     }
     try:
         response = requests.post(url, headers=headers, json=payload)
-        response.raise_for_status()  # Raises an HTTPError for bad responses
+        response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
         st.error(f"Error in Exa search: {str(e)}")
@@ -65,29 +66,60 @@ def main():
     else:
         st.title("Company Search App")
 
-        company_domain = st.text_input("Enter company domain (e.g., sambasci.com):")
+        # Initialize session state variables
+        if "company_domain" not in st.session_state:
+            st.session_state["company_domain"] = ""
+        if "serper_results" not in st.session_state:
+            st.session_state["serper_results"] = None
+        if "exa_results" not in st.session_state:
+            st.session_state["exa_results"] = None
+        if "selected_companies" not in st.session_state:
+            st.session_state["selected_companies"] = set()
+
+        company_domain = st.text_input("Enter company domain (e.g., sambasci.com):", value=st.session_state["company_domain"])
         search_button = st.button("Search")
 
         if search_button and company_domain:
+            st.session_state["company_domain"] = company_domain
             with st.spinner("Searching..."):
                 # Perform searches
-                serper_results = serper_search(company_domain)
-                exa_results = exa_search(company_domain)
+                st.session_state["serper_results"] = serper_search(company_domain)
+                st.session_state["exa_results"] = exa_search(company_domain)
 
-                # Process and display results
+        if st.session_state["serper_results"] or st.session_state["exa_results"]:
+            st.subheader("Search Results")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
                 st.subheader("Serper Results")
-                if "organic" in serper_results:
-                    for result in serper_results["organic"]:
-                        st.checkbox(f"{result['title']} - {result['link']}")
+                if "organic" in st.session_state["serper_results"]:
+                    for result in st.session_state["serper_results"]["organic"]:
+                        key = f"serper_{result['link']}"
+                        if st.checkbox(f"{result['title']} - {result['link']}", key=key, value=key in st.session_state["selected_companies"]):
+                            st.session_state["selected_companies"].add(key)
+                        else:
+                            st.session_state["selected_companies"].discard(key)
                 else:
                     st.warning("No organic results found in Serper search.")
 
+            with col2:
                 st.subheader("Exa Search Results")
-                if exa_results and "results" in exa_results:
-                    for result in exa_results["results"]:
-                        st.checkbox(f"{result.get('title', 'No title')} - {result.get('url', 'No URL')}")
+                if st.session_state["exa_results"] and "results" in st.session_state["exa_results"]:
+                    for result in st.session_state["exa_results"]["results"]:
+                        key = f"exa_{result.get('url', '')}"
+                        if st.checkbox(f"{result.get('title', 'No title')} - {result.get('url', 'No URL')}", key=key, value=key in st.session_state["selected_companies"]):
+                            st.session_state["selected_companies"].add(key)
+                        else:
+                            st.session_state["selected_companies"].discard(key)
                 else:
                     st.warning("No results found in Exa search.")
+
+        # Display selected companies
+        if st.session_state["selected_companies"]:
+            st.subheader("Selected Companies")
+            for company in st.session_state["selected_companies"]:
+                st.write(company)
 
 if __name__ == "__main__":
     main()
