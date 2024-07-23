@@ -1,7 +1,7 @@
 import streamlit as st
 import requests
 import json
-from exa_py import Exa
+from datetime import datetime, timedelta
 
 # Set page config
 st.set_page_config(page_title="Company Search App", page_icon="🔍", layout="wide")
@@ -27,20 +27,21 @@ def login():
             else:
                 st.error("Invalid username or password")
 
-def serper_search(query):
+def serper_search(query, num_results, start_date, end_date):
     url = "https://google.serper.dev/search"
-    payload = json.dumps({
+    payload = {
         "q": query,
-        "num": 15  # Set to fetch 15 results
-    })
+        "num": num_results,
+        "tbs": f"cdr:1,cd_min:{start_date},cd_max:{end_date}"
+    }
     headers = {
         'X-API-KEY': SERPER_API_KEY,
         'Content-Type': 'application/json'
     }
-    response = requests.post(url, headers=headers, data=payload)
+    response = requests.post(url, json=payload, headers=headers)
     return response.json()
 
-def exa_search(query):
+def exa_search(query, search_type, category, num_results, start_date, end_date):
     url = "https://api.exa.ai/search"
     headers = {
         "accept": "application/json",
@@ -49,11 +50,14 @@ def exa_search(query):
     }
     payload = {
         "query": query,
-        "numResults": 15,
-        "type": "auto"
+        "type": search_type,
+        "category": category,
+        "numResults": num_results,
+        "startPublishedDate": start_date,
+        "endPublishedDate": end_date
     }
     try:
-        response = requests.post(url, headers=headers, json=payload)
+        response = requests.post(url, json=payload, headers=headers)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
@@ -67,7 +71,7 @@ def main():
     if not st.session_state["logged_in"]:
         login()
     else:
-        st.title("Company Search App")
+        st.title("Advanced Company Search App")
 
         # Initialize session state variables
         if "company_domain" not in st.session_state:
@@ -79,15 +83,34 @@ def main():
         if "selected_companies" not in st.session_state:
             st.session_state["selected_companies"] = set()
 
-        company_domain = st.text_input("Enter company domain (e.g., sambasci.com):", value=st.session_state["company_domain"])
+        # User input for search parameters
+        st.subheader("Search Parameters")
+        col1, col2 = st.columns(2)
+
+        with col1:
+            company_domain = st.text_input("Enter company domain (e.g., sambasci.com):", value=st.session_state["company_domain"])
+            num_results = st.slider("Number of results", 5, 50, 15)
+            start_date = st.date_input("Start date", datetime.now() - timedelta(days=365))
+            end_date = st.date_input("End date", datetime.now())
+
+        with col2:
+            exa_search_type = st.selectbox("Exa Search Type", ["magic", "neural", "keyword"])
+            exa_category = st.selectbox("Exa Category", ["company", "news", "research paper", "github", "tweet", "movie", "song", "personal site", "pdf"])
+
         search_button = st.button("Search")
 
         if search_button and company_domain:
             st.session_state["company_domain"] = company_domain
             with st.spinner("Searching..."):
+                # Format dates for API calls
+                formatted_start_date = start_date.strftime("%Y-%m-%d")
+                formatted_end_date = end_date.strftime("%Y-%m-%d")
+                exa_start_date = f"{formatted_start_date}T00:00:00.000Z"
+                exa_end_date = f"{formatted_end_date}T23:59:59.999Z"
+
                 # Perform searches
-                st.session_state["serper_results"] = serper_search(company_domain)
-                st.session_state["exa_results"] = exa_search(company_domain)
+                st.session_state["serper_results"] = serper_search(company_domain, num_results, formatted_start_date, formatted_end_date)
+                st.session_state["exa_results"] = exa_search(company_domain, exa_search_type, exa_category, num_results, exa_start_date, exa_end_date)
 
         if st.session_state["serper_results"] or st.session_state["exa_results"]:
             st.subheader("Search Results")
