@@ -1,7 +1,6 @@
 import streamlit as st
 import requests
 import json
-from exa_py import Exa
 
 # Set page config
 st.set_page_config(page_title="Company Search App", page_icon="🔍", layout="wide")
@@ -38,35 +37,24 @@ def serper_search(query):
     return response.json()
 
 def exa_search(query):
+    url = "https://api.exa.ai/search"
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "x-api-key": EXA_API_KEY
+    }
+    payload = {
+        "query": query,
+        "numResults": 10,
+        "type": "neural"
+    }
     try:
-        exa = Exa(api_key=EXA_API_KEY)
-        result = exa.search_and_contents(
-            query,
-            type="auto",
-            num_results=25,
-            text=True
-        )
-        return result
-    except Exception as e:
+        response = requests.post(url, headers=headers, json=payload)
+        response.raise_for_status()  # Raises an HTTPError for bad responses
+        return response.json()
+    except requests.exceptions.RequestException as e:
         st.error(f"Error in Exa search: {str(e)}")
-        return []
-
-def exa_similar_search(domain):
-    try:
-        exa = Exa(api_key=EXA_API_KEY)
-        result = exa.find_similar_and_contents(
-            f"https://{domain}",
-            num_results=10,
-            text=True,
-            exclude_domains=[domain],
-            start_published_date="2024-01-23T16:01:08.902Z",
-            end_published_date="2024-07-23T15:01:08.902Z",
-            highlights=True
-        )
-        return result
-    except Exception as e:
-        st.error(f"Error in Exa similar search: {str(e)}")
-        return []
+        return None
 
 def main():
     if "logged_in" not in st.session_state:
@@ -77,7 +65,7 @@ def main():
     else:
         st.title("Company Search App")
 
-        company_domain = st.text_input("Enter company domain (e.g., apple.com):")
+        company_domain = st.text_input("Enter company domain (e.g., sambasci.com):")
         search_button = st.button("Search")
 
         if search_button and company_domain:
@@ -85,7 +73,6 @@ def main():
                 # Perform searches
                 serper_results = serper_search(company_domain)
                 exa_results = exa_search(company_domain)
-                exa_similar_results = exa_similar_search(company_domain)
 
                 # Process and display results
                 st.subheader("Serper Results")
@@ -96,18 +83,11 @@ def main():
                     st.warning("No organic results found in Serper search.")
 
                 st.subheader("Exa Search Results")
-                if exa_results:
-                    for result in exa_results:
+                if exa_results and "results" in exa_results:
+                    for result in exa_results["results"]:
                         st.checkbox(f"{result.get('title', 'No title')} - {result.get('url', 'No URL')}")
                 else:
                     st.warning("No results found in Exa search.")
-
-                st.subheader("Exa Similar Results")
-                if exa_similar_results:
-                    for result in exa_similar_results:
-                        st.checkbox(f"{result.get('title', 'No title')} - {result.get('url', 'No URL')}")
-                else:
-                    st.warning("No similar results found in Exa search.")
 
 if __name__ == "__main__":
     main()
