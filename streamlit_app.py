@@ -49,8 +49,8 @@ def exa_search(query):
     }
     payload = {
         "query": query,
-        "numResults": 10,
-        "type": "neural"
+        "numResults": 15,
+        "type": "auto"
     }
     try:
         response = requests.post(url, headers=headers, json=payload)
