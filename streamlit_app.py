@@ -29,7 +29,10 @@ def login():
 
 def serper_search(query):
     url = "https://google.serper.dev/search"
-    payload = json.dumps({"q": query})
+    payload = json.dumps({
+        "q": query,
+        "num": 15  # Set to fetch 15 results
+    })
     headers = {
         'X-API-KEY': SERPER_API_KEY,
         'Content-Type': 'application/json'
