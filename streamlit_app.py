@@ -82,23 +82,26 @@ def newsapi_search(query, sources, from_date, to_date, num_results, language='en
 @st.cache_data(ttl=3600)
 def get_url_contents(urls):
     results = {}
-    for i in range(0, len(urls), 100):
-        batch = urls[i:i+100]
-        try:
-            batch_results = exa.get_contents(
-                batch,
-                text=True,
-                highlights={
-                    "num_sentences": 4
+    try:
+        batch_results = exa.get_contents(
+            urls,
+            text=True,
+            highlights={
+                "num_sentences": 4
+            }
+        )
+        if isinstance(batch_results, exa_py.api.SearchResponse):
+            for result in batch_results.results:
+                results[result.url] = {
+                    'title': result.title,
+                    'text': result.text[:300] + "..." if result.text else "No text available",
+                    'highlights': result.highlights if hasattr(result, 'highlights') else []
                 }
-            )
-            if isinstance(batch_results, dict):
-                results.update(batch_results)
-            else:
-                st.warning(f"Unexpected response type for batch {i//100 + 1}: {type(batch_results)}")
-                st.write("Response:", batch_results)
-        except Exception as e:
-            st.error(f"Error in getting URL contents for batch {i//100 + 1}: {str(e)}")
+        else:
+            st.warning(f"Unexpected response type: {type(batch_results)}")
+            st.write("Response:", batch_results)
+    except Exception as e:
+        st.error(f"Error in getting URL contents: {str(e)}")
     return results
 
 def login():
@@ -205,17 +208,13 @@ def main():
                     if url_contents:
                         for url, content in url_contents.items():
                             st.write(f"**URL: {url}**")
-                            if isinstance(content, dict):
-                                if 'text' in content:
-                                    st.write("Text:")
-                                    st.write(content['text'][:300] + "...")  # Display first 300 characters
-                                if 'highlights' in content:
-                                    st.write("Highlights:")
-                                    for highlight in content['highlights']:
-                                        st.markdown(f"- {highlight}")
-                            else:
-                                st.warning(f"Unexpected content type for {url}: {type(content)}")
-                                st.write("Content:", content)
+                            st.write(f"**Title:** {content['title']}")
+                            st.write("**Text:**")
+                            st.write(content['text'])
+                            if content['highlights']:
+                                st.write("**Highlights:**")
+                                for highlight in content['highlights']:
+                                    st.markdown(f"- {highlight}")
                             st.write("---")
                     else:
                         st.warning("No URL contents could be fetched.")
