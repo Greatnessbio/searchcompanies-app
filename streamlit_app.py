@@ -28,7 +28,7 @@ def login():
             if username == USERNAME and password == PASSWORD:
                 st.session_state["logged_in"] = True
                 st.success("Logged in successfully!")
-                st.experimental_rerun()
+                st.rerun()  # Updated from st.experimental_rerun()
             else:
                 st.error("Invalid username or password")
 
