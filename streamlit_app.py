@@ -3,6 +3,7 @@ import requests
 import pandas as pd
 from datetime import datetime, timedelta
 from newsapi import NewsApiClient
+from exa_py import Exa
 
 st.set_page_config(page_title="Company Search App", page_icon="🔍", layout="wide")
 
@@ -13,8 +14,9 @@ SERPER_API_KEY = st.secrets["serper"]["api_key"]
 EXA_API_KEY = st.secrets["exa"]["api_key"]
 NEWSAPI_KEY = st.secrets["newsapi"]["api_key"]
 
-# Initialize NewsAPI client
+# Initialize API clients
 newsapi = NewsApiClient(api_key=NEWSAPI_KEY)
+exa = Exa(api_key=EXA_API_KEY)
 
 @st.cache_data(ttl=3600)
 def serper_search(query, num_results, start_date, end_date):
@@ -77,6 +79,21 @@ def newsapi_search(query, sources, from_date, to_date, language='en', sort_by='r
         st.error(f"Error in NewsAPI search: {str(e)}")
         return None
 
+@st.cache_data(ttl=3600)
+def get_url_contents(urls):
+    try:
+        result = exa.get_contents(
+            urls,
+            text=True,
+            highlights={
+                "num_sentences": 4
+            }
+        )
+        return result
+    except Exception as e:
+        st.error(f"Error in getting URL contents: {str(e)}")
+        return None
+
 def login():
     st.title("Login")
     with st.form("login_form"):
@@ -99,10 +116,10 @@ def main():
     if not st.session_state["logged_in"]:
         login()
     else:
-        st.title("Search App")
+        st.title("Advanced Company Search App")
 
         st.sidebar.header("Search Parameters")
-        company_domain = st.sidebar.text_input("Enter search term")
+        company_domain = st.sidebar.text_input("Enter company domain (e.g., apple.com):")
         num_results = st.sidebar.slider("Number of results", 5, 50, 15)
         start_date = st.sidebar.date_input("Start date", datetime.now() - timedelta(days=30))
         end_date = st.sidebar.date_input("End date", datetime.now())
@@ -128,6 +145,8 @@ def main():
 
                 col1, col2, col3 = st.columns(3)
 
+                urls = []
+
                 with col1:
                     st.subheader("Serper Results")
                     if isinstance(serper_results, dict) and "organic" in serper_results:
@@ -136,6 +155,7 @@ def main():
                             st.write(result['snippet'])
                             st.write(f"[Link]({result['link']})")
                             st.write("---")
+                            urls.append(result['link'])
                     else:
                         st.warning("No organic results found in Serper search.")
 
@@ -147,13 +167,13 @@ def main():
                             if "highlights" in result and result["highlights"]:
                                 st.write("Highlights:")
                                 for highlight in result["highlights"]:
-                                    # Remove HTML tags and replace with markdown
                                     clean_highlight = highlight.replace("<em>", "**").replace("</em>", "**")
                                     st.markdown(f"- {clean_highlight}")
                             else:
-                                st.write(result.get('text', 'No description available')[:300] + "...")  # Limit to 300 characters
+                                st.write(result.get('text', 'No description available')[:300] + "...")
                             st.write(f"[Link]({result.get('url', '#')})")
                             st.write("---")
+                            urls.append(result.get('url', '#'))
                     else:
                         st.warning("No results found in Exa search.")
                         st.write("Exa response:", exa_results)
@@ -167,9 +187,27 @@ def main():
                             st.write(article['description'])
                             st.write(f"[Link]({article['url']})")
                             st.write("---")
+                            urls.append(article['url'])
                     else:
                         st.warning("No results found in NewsAPI search.")
                         st.write("NewsAPI response:", newsapi_results)
+
+                st.subheader("URL Contents and Highlights")
+                with st.spinner("Fetching URL contents..."):
+                    url_contents = get_url_contents(urls)
+                    if url_contents:
+                        for url, content in url_contents.items():
+                            st.write(f"**URL: {url}**")
+                            if 'text' in content:
+                                st.write("Text:")
+                                st.write(content['text'][:300] + "...")  # Display first 300 characters
+                            if 'highlights' in content:
+                                st.write("Highlights:")
+                                for highlight in content['highlights']:
+                                    st.markdown(f"- {highlight}")
+                            st.write("---")
+                    else:
+                        st.warning("No URL contents could be fetched.")
 
 if __name__ == "__main__":
     main()
