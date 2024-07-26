@@ -46,7 +46,11 @@ def exa_search(query, search_type, num_results, start_date, end_date):
         "startPublishedDate": start_date,
         "endPublishedDate": end_date,
         "highlights": True,
-        "useAutoprompt": True
+        "useAutoprompt": True,
+        "text": {
+            "max_characters": 300,
+            "include_html_tags": True
+        }
     }
     try:
         response = requests.post(url, json=payload, headers=headers)
@@ -103,7 +107,7 @@ def main():
         start_date = st.sidebar.date_input("Start date", datetime.now() - timedelta(days=30))
         end_date = st.sidebar.date_input("End date", datetime.now())
 
-        exa_search_type = st.sidebar.selectbox("Exa Search Type", ["neural", "keyword"])
+        exa_search_type = st.sidebar.selectbox("Exa Search Type", ["keyword", "neural"])
 
         newsapi_sources = st.sidebar.text_input("NewsAPI Sources (comma-separated)", "")
         newsapi_language = st.sidebar.selectbox("NewsAPI Language", ["en", "de", "fr", "es"])
@@ -143,9 +147,7 @@ def main():
                             if "highlights" in result and result["highlights"]:
                                 st.write("Highlights:")
                                 for highlight in result["highlights"]:
-                                    # Remove HTML tags from the highlight text
-                                    clean_highlight = highlight.replace("<em>", "**").replace("</em>", "**")
-                                    st.markdown(f"- {clean_highlight}")
+                                    st.markdown(f"- {highlight}")
                             else:
                                 st.write(result.get('text', 'No description available'))
                             st.write(f"[Link]({result.get('url', '#')})")
