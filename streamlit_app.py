@@ -18,13 +18,56 @@ NEWSAPI_KEY = st.secrets["newsapi"]["api_key"]
 newsapi = NewsApiClient(api_key=NEWSAPI_KEY)
 
 def login():
-    # ... (login function remains unchanged)
+    st.title("Login")
+    with st.form("login_form"):
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        submit_button = st.form_submit_button("Login")
+
+        if submit_button:
+            if username == USERNAME and password == PASSWORD:
+                st.session_state["logged_in"] = True
+                st.success("Logged in successfully!")
+                st.experimental_rerun()
+            else:
+                st.error("Invalid username or password")
 
 def serper_search(query, num_results, start_date, end_date):
-    # ... (serper_search function remains unchanged)
+    url = "https://google.serper.dev/search"
+    payload = {
+        "q": query,
+        "num": num_results,
+        "tbs": f"cdr:1,cd_min:{start_date},cd_max:{end_date}"
+    }
+    headers = {
+        'X-API-KEY': SERPER_API_KEY,
+        'Content-Type': 'application/json'
+    }
+    response = requests.post(url, json=payload, headers=headers)
+    return response.json()
 
 def exa_search(query, search_type, category, num_results, start_date, end_date):
-    # ... (exa_search function remains unchanged)
+    url = "https://api.exa.ai/search"
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "x-api-key": EXA_API_KEY
+    }
+    payload = {
+        "query": query,
+        "type": search_type,
+        "category": category,
+        "numResults": num_results,
+        "startPublishedDate": start_date,
+        "endPublishedDate": end_date
+    }
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error in Exa search: {str(e)}")
+        return None
 
 def newsapi_search(query, sources, from_date, to_date, language='en', sort_by='relevancy', page=1):
     try:
