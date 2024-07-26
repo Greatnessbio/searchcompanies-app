@@ -6,7 +6,7 @@ from newsapi import NewsApiClient
 from exa_py import Exa
 import exa_py
 
-st.set_page_config(page_title="Company Search App", page_icon="🔍", layout="wide")
+st.set_page_config(page_title="Search App", page_icon="🔍", layout="wide")
 
 # Load credentials from secrets
 USERNAME = st.secrets["credentials"]["username"]
