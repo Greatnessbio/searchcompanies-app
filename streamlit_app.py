@@ -147,9 +147,11 @@ def main():
                             if "highlights" in result and result["highlights"]:
                                 st.write("Highlights:")
                                 for highlight in result["highlights"]:
-                                    st.markdown(f"- {highlight}")
+                                    # Remove HTML tags and replace with markdown
+                                    clean_highlight = highlight.replace("<em>", "**").replace("</em>", "**")
+                                    st.markdown(f"- {clean_highlight}")
                             else:
-                                st.write(result.get('text', 'No description available'))
+                                st.write(result.get('text', 'No description available')[:300] + "...")  # Limit to 300 characters
                             st.write(f"[Link]({result.get('url', '#')})")
                             st.write("---")
                     else:
