@@ -56,15 +56,17 @@ def exa_search(query, search_type, category, num_results, start_date, end_date):
         return None
 
 @st.cache_data(ttl=3600)
-def newsapi_search(query, sources, from_date, to_date, language='en', sort_by='relevancy', page=1):
+def newsapi_search(query, sources, from_date, to_date, language='en', sort_by='relevancy'):
     try:
-        all_articles = newsapi.get_everything(q=query,
-                                              sources=sources,
-                                              from_param=from_date,
-                                              to=to_date,
-                                              language=language,
-                                              sort_by=sort_by,
-                                              page=page)
+        all_articles = newsapi.get_everything(
+            q=query,
+            sources=sources,
+            from_param=from_date,
+            to=to_date,
+            language=language,
+            sort_by=sort_by,
+            page_size=100  # Increase the number of results
+        )
         return all_articles
     except Exception as e:
         st.error(f"Error in NewsAPI search: {str(e)}")
@@ -95,15 +97,15 @@ def main():
         st.title("Advanced Company Search App")
 
         st.sidebar.header("Search Parameters")
-        company_domain = st.sidebar.text_input("Enter company domain (e.g., sambasci.com):")
+        company_domain = st.sidebar.text_input("Enter company domain (e.g., apple.com):")
         num_results = st.sidebar.slider("Number of results", 5, 50, 15)
-        start_date = st.sidebar.date_input("Start date", datetime.now() - timedelta(days=365))
+        start_date = st.sidebar.date_input("Start date", datetime.now() - timedelta(days=30))  # Changed to 30 days
         end_date = st.sidebar.date_input("End date", datetime.now())
 
         exa_search_type = st.sidebar.selectbox("Exa Search Type", ["magic", "neural", "keyword"])
         exa_category = st.sidebar.selectbox("Exa Category", ["company", "news", "research paper", "github", "tweet", "movie", "song", "personal site", "pdf"])
 
-        newsapi_sources = st.sidebar.text_input("NewsAPI Sources (comma-separated)", "bbc-news,the-verge")
+        newsapi_sources = st.sidebar.text_input("NewsAPI Sources (comma-separated)", "")  # Empty by default
         newsapi_language = st.sidebar.selectbox("NewsAPI Language", ["en", "de", "fr", "es"])
         newsapi_sort_by = st.sidebar.selectbox("NewsAPI Sort By", ["relevancy", "popularity", "publishedAt"])
 
@@ -147,6 +149,7 @@ def main():
                 with col3:
                     st.subheader("NewsAPI Results")
                     if newsapi_results and "articles" in newsapi_results:
+                        st.write(f"Total results: {newsapi_results['totalResults']}")
                         for article in newsapi_results["articles"]:
                             st.write(f"**{article['title']}**")
                             st.write(article['description'])
@@ -154,6 +157,7 @@ def main():
                             st.write("---")
                     else:
                         st.warning("No results found in NewsAPI search.")
+                        st.write("NewsAPI response:", newsapi_results)  # Display the full response for debugging
 
 if __name__ == "__main__":
     main()
