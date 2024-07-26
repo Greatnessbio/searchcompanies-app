@@ -92,7 +92,11 @@ def get_url_contents(urls):
                     "num_sentences": 4
                 }
             )
-            results.update(batch_results)
+            if isinstance(batch_results, dict):
+                results.update(batch_results)
+            else:
+                st.warning(f"Unexpected response type for batch {i//100 + 1}: {type(batch_results)}")
+                st.write("Response:", batch_results)
         except Exception as e:
             st.error(f"Error in getting URL contents for batch {i//100 + 1}: {str(e)}")
     return results
@@ -201,16 +205,25 @@ def main():
                     if url_contents:
                         for url, content in url_contents.items():
                             st.write(f"**URL: {url}**")
-                            if 'text' in content:
-                                st.write("Text:")
-                                st.write(content['text'][:300] + "...")  # Display first 300 characters
-                            if 'highlights' in content:
-                                st.write("Highlights:")
-                                for highlight in content['highlights']:
-                                    st.markdown(f"- {highlight}")
+                            if isinstance(content, dict):
+                                if 'text' in content:
+                                    st.write("Text:")
+                                    st.write(content['text'][:300] + "...")  # Display first 300 characters
+                                if 'highlights' in content:
+                                    st.write("Highlights:")
+                                    for highlight in content['highlights']:
+                                        st.markdown(f"- {highlight}")
+                            else:
+                                st.warning(f"Unexpected content type for {url}: {type(content)}")
+                                st.write("Content:", content)
                             st.write("---")
                     else:
                         st.warning("No URL contents could be fetched.")
+
+                # Debug information
+                st.subheader("Debug Information")
+                st.write("URLs processed:", urls)
+                st.write("URL contents:", url_contents)
 
 if __name__ == "__main__":
     main()
