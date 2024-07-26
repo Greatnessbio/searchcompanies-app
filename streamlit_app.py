@@ -99,7 +99,7 @@ def main():
     if not st.session_state["logged_in"]:
         login()
     else:
-        st.title("Advanced Company Search App")
+        st.title("Search App")
 
         st.sidebar.header("Search Parameters")
         company_domain = st.sidebar.text_input("Enter company domain (e.g., apple.com):")
