@@ -1,8 +1,8 @@
 import streamlit as st
 import requests
+import pandas as pd
 from datetime import datetime, timedelta
 from newsapi import NewsApiClient
-from exa_py import Exa
 
 st.set_page_config(page_title="Company Search App", page_icon="🔍", layout="wide")
 
@@ -13,9 +13,8 @@ SERPER_API_KEY = st.secrets["serper"]["api_key"]
 EXA_API_KEY = st.secrets["exa"]["api_key"]
 NEWSAPI_KEY = st.secrets["newsapi"]["api_key"]
 
-# Initialize API clients
+# Initialize NewsAPI client
 newsapi = NewsApiClient(api_key=NEWSAPI_KEY)
-exa = Exa(api_key=EXA_API_KEY)
 
 @st.cache_data(ttl=3600)
 def serper_search(query, num_results, start_date, end_date):
@@ -34,22 +33,26 @@ def serper_search(query, num_results, start_date, end_date):
 
 @st.cache_data(ttl=3600)
 def exa_search(query, search_type, num_results, start_date, end_date):
+    url = "https://api.exa.ai/search"
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "x-api-key": EXA_API_KEY
+    }
+    payload = {
+        "query": query,
+        "type": search_type,
+        "numResults": num_results,
+        "startPublishedDate": start_date,
+        "endPublishedDate": end_date,
+        "highlights": True,
+        "useAutoprompt": True
+    }
     try:
-        result = exa.search_and_contents(
-            query,
-            type=search_type,
-            use_autoprompt=True,
-            num_results=num_results,
-            start_published_date=start_date,
-            end_published_date=end_date,
-            text={
-                "max_characters": 300,
-                "include_html_tags": True
-            },
-            highlights=True
-        )
-        return result
-    except Exception as e:
+        response = requests.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
         st.error(f"Error in Exa search: {str(e)}")
         return None
 
@@ -100,7 +103,7 @@ def main():
         start_date = st.sidebar.date_input("Start date", datetime.now() - timedelta(days=30))
         end_date = st.sidebar.date_input("End date", datetime.now())
 
-        exa_search_type = st.sidebar.selectbox("Exa Search Type", ["neural", "keyword", "semantic"])
+        exa_search_type = st.sidebar.selectbox("Exa Search Type", ["neural", "keyword"])
 
         newsapi_sources = st.sidebar.text_input("NewsAPI Sources (comma-separated)", "")
         newsapi_language = st.sidebar.selectbox("NewsAPI Language", ["en", "de", "fr", "es"])
@@ -112,16 +115,18 @@ def main():
             with st.spinner("Searching..."):
                 formatted_start_date = start_date.strftime("%Y-%m-%d")
                 formatted_end_date = end_date.strftime("%Y-%m-%d")
+                exa_start_date = f"{formatted_start_date}T00:00:00.000Z"
+                exa_end_date = f"{formatted_end_date}T23:59:59.999Z"
 
                 serper_results = serper_search(company_domain, num_results, formatted_start_date, formatted_end_date)
-                exa_results = exa_search(company_domain, exa_search_type, num_results, formatted_start_date, formatted_end_date)
+                exa_results = exa_search(company_domain, exa_search_type, num_results, exa_start_date, exa_end_date)
                 newsapi_results = newsapi_search(company_domain, newsapi_sources, formatted_start_date, formatted_end_date, newsapi_language, newsapi_sort_by)
 
                 col1, col2, col3 = st.columns(3)
 
                 with col1:
                     st.subheader("Serper Results")
-                    if "organic" in serper_results:
+                    if isinstance(serper_results, dict) and "organic" in serper_results:
                         for result in serper_results["organic"]:
                             st.write(f"**{result['title']}**")
                             st.write(result['snippet'])
@@ -132,12 +137,12 @@ def main():
 
                 with col2:
                     st.subheader("Exa Search Results")
-                    if exa_results and "results" in exa_results:
+                    if isinstance(exa_results, dict) and "results" in exa_results:
                         for result in exa_results["results"]:
                             st.write(f"**{result.get('title', 'No title')}**")
-                            if result.get('highlights'):
+                            if "highlights" in result and result["highlights"]:
                                 st.write("Highlights:")
-                                for highlight in result['highlights']:
+                                for highlight in result["highlights"]:
                                     st.markdown(f"- {highlight}", unsafe_allow_html=True)
                             else:
                                 st.write(result.get('text', 'No description available'))
@@ -145,10 +150,11 @@ def main():
                             st.write("---")
                     else:
                         st.warning("No results found in Exa search.")
+                        st.write("Exa response:", exa_results)
 
                 with col3:
                     st.subheader("NewsAPI Results")
-                    if newsapi_results and "articles" in newsapi_results:
+                    if isinstance(newsapi_results, dict) and "articles" in newsapi_results:
                         st.write(f"Total results: {newsapi_results['totalResults']}")
                         for article in newsapi_results["articles"]:
                             st.write(f"**{article['title']}**")
