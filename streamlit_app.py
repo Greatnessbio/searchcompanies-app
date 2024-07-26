@@ -51,7 +51,7 @@ def exa_search(query, search_type, num_results, start_date, end_date):
         "highlights": True,
         "useAutoprompt": True,
         "text": {
-            "max_characters": 300,
+            "max_characters": 1300,
             "include_html_tags": True
         }
     }
