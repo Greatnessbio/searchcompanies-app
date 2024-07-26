@@ -130,7 +130,7 @@ def main():
         st.title("Advanced Company Search App")
 
         st.sidebar.header("Search Parameters")
-        company_domain = st.sidebar.text_input("Enter company domain (e.g., apple.com):")
+        company_domain = st.sidebar.text_input("Enter search term")
         num_results = st.sidebar.slider("Number of results", 5, 50, 15)
         start_date = st.sidebar.date_input("Start date", datetime.now() - timedelta(days=30))
         end_date = st.sidebar.date_input("End date", datetime.now())
