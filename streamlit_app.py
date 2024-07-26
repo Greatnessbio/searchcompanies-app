@@ -63,7 +63,7 @@ def exa_search(query, search_type, num_results, start_date, end_date):
         return None
 
 @st.cache_data(ttl=3600)
-def newsapi_search(query, sources, from_date, to_date, language='en', sort_by='relevancy'):
+def newsapi_search(query, sources, from_date, to_date, num_results, language='en', sort_by='relevancy'):
     try:
         all_articles = newsapi.get_everything(
             q=query,
@@ -72,7 +72,7 @@ def newsapi_search(query, sources, from_date, to_date, language='en', sort_by='r
             to=to_date,
             language=language,
             sort_by=sort_by,
-            page_size=100
+            page_size=num_results
         )
         return all_articles
     except Exception as e:
@@ -81,18 +81,21 @@ def newsapi_search(query, sources, from_date, to_date, language='en', sort_by='r
 
 @st.cache_data(ttl=3600)
 def get_url_contents(urls):
-    try:
-        result = exa.get_contents(
-            urls,
-            text=True,
-            highlights={
-                "num_sentences": 4
-            }
-        )
-        return result
-    except Exception as e:
-        st.error(f"Error in getting URL contents: {str(e)}")
-        return None
+    results = {}
+    for i in range(0, len(urls), 100):
+        batch = urls[i:i+100]
+        try:
+            batch_results = exa.get_contents(
+                batch,
+                text=True,
+                highlights={
+                    "num_sentences": 4
+                }
+            )
+            results.update(batch_results)
+        except Exception as e:
+            st.error(f"Error in getting URL contents for batch {i//100 + 1}: {str(e)}")
+    return results
 
 def login():
     st.title("Login")
@@ -141,7 +144,7 @@ def main():
 
                 serper_results = serper_search(company_domain, num_results, formatted_start_date, formatted_end_date)
                 exa_results = exa_search(company_domain, exa_search_type, num_results, exa_start_date, exa_end_date)
-                newsapi_results = newsapi_search(company_domain, newsapi_sources, formatted_start_date, formatted_end_date, newsapi_language, newsapi_sort_by)
+                newsapi_results = newsapi_search(company_domain, newsapi_sources, formatted_start_date, formatted_end_date, num_results, newsapi_language, newsapi_sort_by)
 
                 col1, col2, col3 = st.columns(3)
 
@@ -150,7 +153,7 @@ def main():
                 with col1:
                     st.subheader("Serper Results")
                     if isinstance(serper_results, dict) and "organic" in serper_results:
-                        for result in serper_results["organic"]:
+                        for result in serper_results["organic"][:num_results]:
                             st.write(f"**{result['title']}**")
                             st.write(result['snippet'])
                             st.write(f"[Link]({result['link']})")
@@ -162,7 +165,7 @@ def main():
                 with col2:
                     st.subheader("Exa Search Results")
                     if isinstance(exa_results, dict) and "results" in exa_results:
-                        for result in exa_results["results"]:
+                        for result in exa_results["results"][:num_results]:
                             st.write(f"**{result.get('title', 'No title')}**")
                             if "highlights" in result and result["highlights"]:
                                 st.write("Highlights:")
@@ -181,8 +184,8 @@ def main():
                 with col3:
                     st.subheader("NewsAPI Results")
                     if isinstance(newsapi_results, dict) and "articles" in newsapi_results:
-                        st.write(f"Total results: {newsapi_results['totalResults']}")
-                        for article in newsapi_results["articles"]:
+                        st.write(f"Total results: {min(newsapi_results['totalResults'], num_results)}")
+                        for article in newsapi_results["articles"][:num_results]:
                             st.write(f"**{article['title']}**")
                             st.write(article['description'])
                             st.write(f"[Link]({article['url']})")
